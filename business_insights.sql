@@ -36,7 +36,7 @@ SELECT
     conversion_rate_pct
     avg_order_value,
     revenue as total_revenue,
-    RANK() OVER (ORDER BY conversion_rate DESC) as conversion_rank
+    RANK() OVER (ORDER BY conversion_rate_pct DESC) as conversion_rank
 FROM channel_metrics
 ORDER BY conversion_rate_pct DESC;
 
