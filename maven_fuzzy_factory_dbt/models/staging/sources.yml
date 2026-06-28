@@ -1,0 +1,12 @@
+version: 2
+
+sources:
+ -name: maven_fuzzy_factory
+ schema: public
+ tables:
+  -name: orders
+  -name: order_items
+  -name: order_item_refunds
+  -name: products
+  -name: website_sessions
+  -name: website_pageviews
