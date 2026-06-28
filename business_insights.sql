@@ -40,3 +40,45 @@ SELECT
 FROM channel_metrics
 ORDER BY conversion_rate_pct DESC;
 
+
+WITH product_sales AS(
+    SELECT 
+        p.product_id,
+        p.product_name,
+        COUNT(DISTINCT oi.order_item_id) AS units_sold,
+        SUM(oi.price_usd) AS gross_revenue,
+        SUM(oi.cogs_usd) AS total_cogs
+    FROM products p
+    LEFT JOIN order_items oi ON p.product_id = oi.product_id
+    GROUP BY p.product_id, p.product_name
+),
+refund_agg AS(
+    SELECT 
+        oi.product_id,
+        COUNT(DISTINCT r.order_item_refund_id) AS refund_count,
+        SUM(r.refund_amount_usd) AS total_refund_amount
+    FROM order_items oi
+    JOIN order_item_refund r ON oi.order_item_id = r.order_item_id
+    GROUP BY oi.product_id
+)
+SELECT
+    ps.product_name,
+    ps.units_sold,
+    ROUND(ps.total_cogs::numeric, 0) AS total_cogs,
+    ROUND(ps.gross_revenue::numeric, 0) AS gross_revenue,
+    ROUND(ps.gross_revenue - ps.total_cogs)::numeric, 0) AS gross_profit,
+    ROUND(
+        100.0 * (ps.gross_revenue - ps.total_cogs) / NULLIF(ps.gross_revenue, 0), 2
+    ) AS profit_margin_pct,
+    COALESCE(ra.refund_count, 0) AS refund_count,
+    ROUND(COALESCE(ra.total_refund_amount, 0)::numeric, 0) AS total_refund_amount,
+    ROUND(
+        100.0 * COALESCE(ra.total_refund_amount, 0) / NULLIF(ps.gross_revenue, 0), 2
+    ) AS refund_rate_of_revenue_pct,
+    RANK() OVER (ORDER BY (ps.gross_revenue - ps.total_cogs) DESC) AS profit_rank,
+    RANK() OVER (
+        ORDER BY (100.0 * (ps.gross_revenue -ps.total_cogs) /NULLIF(ps.gross_revenue, 0)) DESC
+    )) AS margin_rank
+    FROM product_sales ps
+    LEFT JOIN refund_agg ra ON ps.product_id = ra.product_id
+    ORDER BY gross_profit DESC;
