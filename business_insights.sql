@@ -33,14 +33,16 @@ SELECT
     utm_campaign,
     sessions,
     orders,
-    conversion_rate_pct
+    conversion_rate_pct,
     avg_order_value,
     revenue as total_revenue,
     RANK() OVER (ORDER BY conversion_rate_pct DESC) as conversion_rank
 FROM channel_metrics
 ORDER BY conversion_rate_pct DESC;
 
-
+-- ============================================
+-- 2. PRODUCT-LEVEL PROFITABILITY
+-- ============================================
 WITH product_sales AS(
     SELECT 
         p.product_id,
@@ -78,7 +80,10 @@ SELECT
     RANK() OVER (ORDER BY (ps.gross_revenue - ps.total_cogs) DESC) AS profit_rank,
     RANK() OVER (
         ORDER BY (100.0 * (ps.gross_revenue -ps.total_cogs) /NULLIF(ps.gross_revenue, 0)) DESC
-    )) AS margin_rank
+    ) AS margin_rank
     FROM product_sales ps
     LEFT JOIN refund_agg ra ON ps.product_id = ra.product_id
     ORDER BY gross_profit DESC;
+
+-- ============================================
+
