@@ -170,7 +170,7 @@ SELECT
     ROUND(
         SUM(o.price_usd)::numeric / NULLIF(COUNT(DISTINCT s.website_session_id), 0), 2
     ) AS revenue_per_session
-FROM website sessions s
+FROM website_sessions s
 LEFT JOIN orders o ON o.website_session_id = s.website_session_id
 GROUP BY 1
 ORDER BY 1 DESC;
