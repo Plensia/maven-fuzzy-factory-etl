@@ -86,4 +86,54 @@ SELECT
     ORDER BY gross_profit DESC;
 
 -- ============================================
+-- 3. REFUND RATE TRENDS OVER TIME
+-- Monthly refund rates by product
+-- ============================================
 
+WITH monthly_sales AS(
+    SELECT
+        DATE_TRUNC('month', oi.created_at) AS month,
+        p.product_name,
+        COUNT(DISTINCT oi.order_item_id) AS units_sold_that_month
+    FROM order_items oi
+    JOIN products p ON oi.product_id = p.product_id
+    WHERE oi.created_at >= '2013-01-01'
+    GROUP BY 1, 2
+),
+monthly_refunds AS(
+    SELECT 
+        DATE_TRUNC('month', r.created_at) AS month,
+        p.product_name,
+        COUNT(DISTINCT r.order_item_refund_id) AS refunds
+    FROM order_item_refunds r
+    JOIN order_items oi ON r.order_item_id = oi.order_item_id
+    JOIN products p ON oi.product_id = p.product_id
+    WHERE r.created_at >= '2013-01-01'
+    GROUP BY 1, 2
+),
+combined AS(
+    SELECT
+        s.month,
+        s.product_name,
+        s.units_sold_that_month,
+        COALESCE(r.refunds, 0) AS refunds
+    FROM monthly_sales s
+    LEFT JOIN monthly_refunds r
+    ON s.month = r.month AND s.product_name = r.product_name
+)
+SELECT 
+    month::date AS refund_month,
+    product_name,
+    refunds,
+    units_sold_that_month,
+    ROUND(100.0 * refunds / NULLIF(units_sold_that_month,0), 2) AS refund_rate_pct,
+    ROUND(
+        AVG(100.0 * refunds / NULLIF(units_sold_that_month,0)) OVER (
+            PARTITION BY product_name
+            ORDER BY month
+            ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+        ),
+        2
+    ) AS rolling_3m_avg_refund_rate_pct
+FROM combined
+ORDER BY refund_month DESC, product_name;
