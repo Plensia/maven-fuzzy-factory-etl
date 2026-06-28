@@ -174,3 +174,42 @@ FROM website_sessions s
 LEFT JOIN orders o ON o.website_session_id = s.website_session_id
 GROUP BY 1
 ORDER BY 1 DESC;
+
+-- ============================================
+--5. REPEAT SESSION/CONVERSION BEHAVIOR
+--nNew vs returning customers performance
+-- ============================================
+
+WITH customer_segments AS(
+    SELECT
+        CASE
+            WHEN s.is_repeat_session = 0 THEN 'First-Time Visitor'
+            WHEN s.is_repeat_session = 1 AND s.user_id IS NULL THEN 'Repeat Guest'
+            ELSE 'Repeat Registered'
+        END AS customer_type,
+        s.website_session_id,
+        s.user_id,
+        o.order_id,
+        o.price_usd,
+        s.device_type,
+        s.utm_source
+    FROM website_sessions s
+    left join orders o ON s.website_session_id = o.website_session_id
+    WHERE s.created_at >= '2013-01-01'
+)
+SELECT
+    customer_type,
+    COUNT(DISTINCT website_session_id) AS sessions,
+    COUNT(DISTINCT order_id) AS orders,
+    ROUND(
+        100.0 * COUNT(DISTINCT order_id) / NULLIF(COUNT(DISTINCT website_session_id), 0), 2
+    ) AS conversion_rate_pct,
+    ROUND(AVG(price_usd)::numeric, 2) AS avg_order_value,
+    ROUND(SUM(price_usd)::numeric, 0) AS total_revenue,
+    ROUND(
+        100.0 * COUNT(DISTINCT CASE WHEN device_type = 'mobile' THEN website_session_id END)
+        / COUNT(DISTINCT website_session_id), 2
+    ) AS pct_gsearch
+    FROM customer_segments
+    GROUP BY 1
+    ORDER BY conversion_rate_pct DESC;
