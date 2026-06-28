@@ -213,3 +213,55 @@ SELECT
     FROM customer_segments
     GROUP BY 1
     ORDER BY conversion_rate_pct DESC;
+
+    
+-- ============================================
+-- BONUS: COHORT RETENTION ANALYSIS
+-- Monthly customer retention (repeat purchase behavior)
+--A cohort = a group of customers who share something in common about when they started. 
+--In this case, the shared trait being: all customers whose first ever order happened in the same calendar month.
+-- ============================================
+
+WITH first_purchase AS (
+    SELECT
+        user_id,
+        DATE_TRUNC('month', MIN(created_at)) AS cohort_month
+    FROM orders
+    WHERE user_id IS NOT NULL
+    GROUP BY 1
+),
+cohort_orders AS (
+    SELECT
+        f.cohort_month,
+        o.user_id,
+        DATE_TRUNC('month', o.created_at) AS order_month,
+        (
+            EXTRACT(YEAR FROM AGE(DATE_TRUNC('month', o.created_at), f.cohort_month)) * 12
+            + EXTRACT(MONTH FROM AGE(DATE_TRUNC('month', o.created_at), f.cohort_month))
+        )::int AS month_number
+    FROM orders o
+    JOIN first_purchase f ON o.user_id = f.user_id
+)
+SELECT
+    cohort_month::date,
+    COUNT(DISTINCT user_id) AS customers_in_cohort,
+    COUNT(DISTINCT CASE WHEN month_number = 0 THEN user_id END) AS month_0,
+    COUNT(DISTINCT CASE WHEN month_number = 1 THEN user_id END) AS month_1,
+    COUNT(DISTINCT CASE WHEN month_number = 2 THEN user_id END) AS month_2,
+    COUNT(DISTINCT CASE WHEN month_number = 3 THEN user_id END) AS month_3,
+    COUNT(DISTINCT CASE WHEN month_number = 4 THEN user_id END) AS month_4,
+    COUNT(DISTINCT CASE WHEN month_number = 5 THEN user_id END) AS month_5,
+    COUNT(DISTINCT CASE WHEN month_number = 6 THEN user_id END) AS month_6,
+    ROUND(
+        100.0 * COUNT(DISTINCT CASE WHEN month_number = 1 THEN user_id END)
+        / NULLIF(COUNT(DISTINCT user_id), 0),
+        2
+    ) AS retention_m1_pct,
+    ROUND(
+        100.0 * COUNT(DISTINCT CASE WHEN month_number = 6 THEN user_id END)
+        / NULLIF(COUNT(DISTINCT user_id), 0),
+        2
+    ) AS retention_m6_pct
+FROM cohort_orders
+GROUP BY 1
+ORDER BY 1 DESC;
