@@ -137,3 +137,40 @@ SELECT
     ) AS rolling_3m_avg_refund_rate_pct
 FROM combined
 ORDER BY refund_month DESC, product_name;
+
+
+-- ============================================
+-- 4. ORDER VALUE TRENDS OVER TIME
+-- AOV, items per order (order-anchored)
+-- ============================================
+
+--Order-level trends
+SELECT 
+    DATE_TRUNC('month', o.created_at)::date AS month,
+    COUNT(DISTINCT o.order_id) AS orders,
+    ROUND(AVG(o.items_purchased)::numeric, 2) AS avg_items_per_order,
+    ROUND(AVG(o.price_usd)::numeric, 2) AS aov,
+    ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY O.price_usd)::numeric,2) AS median_order_value,
+    ROUND(SUM(o.price_usd)::numeric, 0) AS monthly_revenue,
+    COUNT(DISTINCT CASE WHEN o.items_purchased = 1 THEN o.order_id END) AS single_item_orders,
+    COUNT(DISTINCT CASE WHEN o.items_purchased > 1 THEN o.order_id END) AS multi_item_orders,
+    ROUND(
+        100.0 * COUNT(DISTINCT CASE WHEN o.items_purchased > 1 THEN o.order_id END) / NULLIF(COUNT(DISTINCT o.order_id), 0), 2
+    ) AS pct_multi_item
+FROM orders o
+GROUP BY 1
+ORDER BY 1 DESC;
+
+--4b. Revenue per session 
+--(anchored on website_sessions where denominator reflects ALL traffic, not just sessions that converted to order)
+SELECT
+    DATE_TRUNC('month', s.created_at)::date AS month,
+    COUNT(DISTINCT s.website_session_id) AS sessions,
+    COUNT(DISTINCT o.order_id) AS orders,
+    ROUND(
+        SUM(o.price_usd)::numeric / NULLIF(COUNT(DISTINCT s.website_session_id), 0), 2
+    ) AS revenue_per_session
+FROM website sessions s
+LEFT JOIN orders o ON o.website_session_id = s.website_session_id
+GROUP BY 1
+ORDER BY 1 DESC;
