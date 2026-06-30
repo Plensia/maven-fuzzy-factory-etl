@@ -7,7 +7,7 @@ with channel_metrics as (
         count(distinct s.website_session_id) as sessions,
         count(distinct o.order_id) as orders,
         round(sum(o.price_usd)::numeric, 0) as revenue,
-        round(100.0 * count(distinct o.order_id) / nullif(count(distinct s.website_session_id), 0), 2) as conversion rate_pct,
+        round(100.0 * count(distinct o.order_id) / nullif(count(distinct s.website_session_id), 0), 2) as conversion_rate_pct,
         round(sum(o.price_usd)::numeric / nullif(count(distinct o.order_id), 0), 2) as avg_order_value
     from {{ ref('stg_website_sessions')}} s
     left join {{ ref('stg_orders')}} o
