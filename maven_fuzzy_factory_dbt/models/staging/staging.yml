@@ -1,0 +1,45 @@
+version: 2
+
+models:
+  - name: stg_orders
+    columns:
+        - name: order_id
+          tests:
+            - unique
+            - not_null
+
+        - name: stg_order_items
+          columns: 
+            - name: order_item_id
+              tests:
+                - unique
+                - not_null
+
+        - name: stg_order_item_refunds
+          columns:
+            - name: order_item_refund_id
+              tests:
+                - unique
+                - not_null
+
+        - name: stg_products
+          columns:
+            - name: product_id
+              tests:
+                - unique
+                - not_null
+
+        - name: stg_website_sessions
+          columns:
+            - name: website_session_id
+              tests:
+                - unique
+                - not_null
+   
+        - name: stg_website_pagevoew
+          columns:
+            - name: website_pageview_id
+              tests:
+                - unique
+                - not_null
+
