@@ -1,5 +1,5 @@
 with source as(
-    select * from {{ source('maven_fuzzy_factory', 'order_items_refunds')}}
+    select * from {{ source('maven_fuzzy_factory', 'order_item_refunds')}}
 )
 
 select

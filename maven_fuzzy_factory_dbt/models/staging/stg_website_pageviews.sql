@@ -3,7 +3,7 @@ with source as(
 )
 
 select
-    website_pageviews_id,
+    website_pageview_id,
     created_at,
     website_session_id,
     pageview_url
