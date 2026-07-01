@@ -17,7 +17,7 @@ monthly_refunds as (
         date_trunc('month', r.created_at) as month,
         p.product_name,
         count(distinct r.order_item_refund_id) as refunds
-    from {{ ref('stg_order_items_refunds') }} r
+    from {{ ref('stg_order_item_refunds') }} r
     join {{ ref('stg_order_items') }} oi 
         on r.order_item_id = oi.order_item_id
     join {{ ref('stg_products') }} p 

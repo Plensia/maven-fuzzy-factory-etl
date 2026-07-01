@@ -1,4 +1,4 @@
-{{ config(materilazed='table')}}
+{{ config(materialized='table')}}
 
 with channel_metrics as (
     select

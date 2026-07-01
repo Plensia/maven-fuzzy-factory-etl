@@ -19,7 +19,7 @@ refund_agg as (
         count(distinct r.order_item_refund_id) as refund_count,
         sum(r.refund_amount_usd) as total_refund_amount
     from {{ ref('stg_order_items') }} oi
-    join {{ ref('stg_order_items_refunds') }} r 
+    join {{ ref('stg_order_item_refunds') }} r 
         on oi.order_item_id = r.order_item_id
     group by oi.product_id
 )
