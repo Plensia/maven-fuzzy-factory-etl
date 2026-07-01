@@ -2,7 +2,7 @@
 
 A production-style ETL pipeline that loads e-commerce data (orders, sessions, pageviews, products, refunds) from CSV into PostgreSQL — built with incremental loading, idempotency, and data validation rather than a one-off "load the CSV" script.
 
-## The problem
+## The Problem
 
 The Maven Fuzzy Factory dataset is six related CSV files totaling 1.2M+ rows (orders, order items, refunds, products, website sessions, website pageviews). A naive approach — drop the table and reload the whole CSV every time — works for a demo but breaks down quickly:
 
@@ -26,28 +26,33 @@ CSV files  →  Extract  →  Transform/Validate  →  Load (watermark-based)  �
 **Validate** — confirms the primary key column exists, has no NULLs, and has no duplicates before any data touches the database.
 
 **Load** — two strategies depending on the table:
+
 - **Incremental** (orders, order_items, refunds, sessions, pageviews): reads the `MAX(created_at)` already in the table as a watermark, then only loads rows newer than that.
 - **Full refresh** (products): small reference table, truncate-and-reload is simpler and safe.
 
-## Key design decisions
+## Key Design Decisions
 
-**Why the source `created_at` as the watermark, not the load timestamp?**
+### Why the source `created_at` as the watermark, not the load timestamp?
+
 Using `_etl_loaded_at` (when *we* inserted the row) as the watermark would drift if the pipeline ever reloads historical data — it would create gaps or double-loads. `created_at` is the business timestamp on the record itself, so the watermark is stable regardless of when or how often the pipeline runs.
 
-**Why `ON CONFLICT DO NOTHING` instead of an upsert?**
+### Why `ON CONFLICT DO NOTHING` instead of an upsert?
+
 This dataset's source rows don't change after creation — an order placed yesterday doesn't get edited today. So there's nothing to *update*, only new rows to insert. `ON CONFLICT DO NOTHING` makes the load idempotent: if the pipeline runs twice over an overlapping window, duplicate primary keys are silently skipped instead of erroring or duplicating data.
 
-**Why `execute_values` + `itertuples` instead of `to_sql` or `iterrows`?**
+### Why `execute_values` + `itertuples` instead of `to_sql` or `iterrows`?
+
 `iterrows()` is notoriously slow on large DataFrames because it builds a Python object per row. `itertuples()` is a lightweight iterator, and `execute_values` batches the insert into a single multi-row `INSERT` statement (page size 5000) rather than one round-trip per row. On 1.2M+ rows this is the difference between a load that takes minutes and one that takes hours.
 
-**Why explicit DDL instead of letting pandas infer the schema?**
+### Why explicit DDL instead of letting pandas infer the schema?
+
 `df.to_sql()`-style auto-generated tables tend to default IDs to `INTEGER` (risky at scale) and text-like columns to oversized types, with no indexes. Writing the DDL by hand means correct types (`BIGINT` for IDs that could exceed 2.1B), primary keys enforced at the database level, and indexes placed on the foreign keys and timestamp columns that actually get queried.
 
 ## Stack
 
-- **Python**: pandas, psycopg2
-- **Database**: PostgreSQL
-- **Data**: Maven Fuzzy Factory sample e-commerce dataset (orders, order_items, order_item_refunds, products, website_sessions, website_pageviews)
+- **Python** — pandas, psycopg2
+- **Database** — PostgreSQL
+- **Data** — Maven Fuzzy Factory sample e-commerce dataset (orders, order_items, order_item_refunds, products, website_sessions, website_pageviews)
 
 ## Files
 
@@ -57,6 +62,8 @@ This dataset's source rows don't change after creation — an order placed yeste
 | `verify_load.py` | Post-load verification: row counts, NULL PK checks, date ranges, a sample business metric (session→order conversion rate) |
 
 ## Setup
+
+Install dependencies:
 
 ```bash
 pip install pandas psycopg2-binary python-dotenv
@@ -75,7 +82,7 @@ python etl_pipeline.py
 python verify_load.py
 ```
 
-## Status / next step
+## Status / Next Step
 
 This is the loading layer. The next phase is a **dbt transformation layer** on top of these raw tables to build cleaned, business-ready models (e.g. session-to-order funnels, refund-adjusted revenue).
 
